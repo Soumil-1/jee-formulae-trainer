@@ -1,33 +1,56 @@
-const CACHE = 'jee-formulae-trainer-shell-v1';
+const CACHE = 'jee-formulae-trainer-v2';
+
 const APP_SHELL = [
   './',
-  './JEE_Formulae_Trainer.html',
+  './index.html',
   './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    caches.keys()
+      .then(keys =>
+        Promise.all(
+          keys
+            .filter(key => key !== CACHE)
+            .map(key => caches.delete(key))
+        )
+      )
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
-  const request = event.request;
-  if (request.method !== 'GET') return;
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    caches.match(request).then(cached => cached || fetch(request).then(response => {
-      const copy = response.clone();
-      if (new URL(request.url).origin === self.location.origin) {
-        caches.open(CACHE).then(cache => cache.put(request, copy));
-      }
-      return response;
-    }).catch(() => caches.match('./JEE_Formulae_Trainer.html')))
+    caches.match(event.request)
+      .then(cached => {
+        if (cached) return cached;
+
+        return fetch(event.request)
+          .then(response => {
+            const copy = response.clone();
+
+            if (response.ok) {
+              caches.open(CACHE).then(cache => {
+                cache.put(event.request, copy);
+              });
+            }
+
+            return response;
+          })
+          .catch(() => caches.match('./index.html'));
+      })
   );
 });
